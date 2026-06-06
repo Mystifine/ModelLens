@@ -1,0 +1,11 @@
+{
+  "name": "ModelLens",
+  "tree": {
+    "$className": "DataModel",
+
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$path": "src"
+    }
+  }
+}
