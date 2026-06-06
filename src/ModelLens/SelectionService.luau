@@ -8,4 +8,10 @@ function SelectionService.getSelection()
 	return selected[1]
 end
 
+function SelectionService.getSelections()
+  return Selection:Get();
+end
+
+SelectionService.SelectionChanged = Selection.SelectionChanged
+
 return SelectionService;
