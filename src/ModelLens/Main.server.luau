@@ -1,4 +1,4 @@
-local WidgetUI = require(script.Parent.WidgetUI);
+local WidgetUI = require(script.Parent.UI.WidgetUI);
 
 local toolbar = plugin:CreateToolbar("ModelLens");
 local openButton = toolbar:CreateButton(

@@ -1,9 +1,14 @@
-local InstanceExtensionsService = game:GetService("InstanceExtensionsService")
 local UserInputService = game:GetService("UserInputService");
-local ValueService = require(script.Parent.ValueService);
 
-local PRESET_SETTINGS = require(script.Parent.PresetSettings)
-local SelectionService = require(script.Parent.SelectionService)
+local PresetSettings = require(script.Parent.Parent.Constants.PresetSettings);
+local SettingsConfig = require(script.Parent.Parent.Constants.SettingsConfig);
+
+local ValueUtil = require(script.Parent.Parent.Utility.ValueUtil);
+local SelectionUtil = require(script.Parent.Parent.Utility.SelectionUtil);
+local ViewportFrameUtil = require(script.Parent.Parent.Utility.ViewportFrameUtil);
+
+-- plugin context
+local pluginContext = nil;
 
 -- Widget Settings
 local FRAME_SIZE_X, FRAME_SIZE_Y = 400, 300;
@@ -12,7 +17,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float,true,
 
 -- Top Menu Selection Settings
 local menuOptions = {"Camera", "Effects"};
-local selectedMenuValue = ValueService.stringValue(menuOptions[1]);
+local selectedMenuValue = ValueUtil.stringValue(menuOptions[1]);
 local UNSELECTED_COLOR = Color3.fromRGB(50,50,50);
 local SELECTED_COLOR = Color3.fromRGB(76, 103, 255)
 
@@ -21,37 +26,61 @@ local isDragging = false;
 local mouseX, mouseY = 0, 0;
 
 -- Current Camera Settings
-local DEFAULT_CAMERA_CFRAME = CFrame.new(0,1000,0);
 local cameraSettings = {
-  objectRotationX = ValueService.numberValue(0);
-  objectRotationY = ValueService.numberValue(0);
-  fieldOfView = ValueService.numberValue(70),
-  brightness = ValueService.numberValue(100),
-  cameraOffsetX = ValueService.numberValue(0),
-  cameraOffsetY = ValueService.numberValue(0),
-  cameraOffsetZ = ValueService.numberValue(0),
+  orbitX = ValueUtil.numberValue(180); 
+  orbitY = ValueUtil.numberValue(0); 
+  fieldOfView = ValueUtil.numberValue(70),
+  ambient = ValueUtil.numberValue(0.8),
+  brightness = ValueUtil.numberValue(1.0),
+  panX = ValueUtil.numberValue(0),
+  panY = ValueUtil.numberValue(0),
+  distance = ValueUtil.numberValue(1),
 }
 
 local effectSettings = {
 
 };
 
-local renderCamera = Instance.new("Camera");
-local function updateCameraSettings()
-  -- Need to update renderCamera
-  renderCamera.FieldOfView = cameraSettings.fieldOfView.Value;
-  renderCamera.CFrame = DEFAULT_CAMERA_CFRAME * CFrame.new(cameraSettings.cameraOffsetX.Value, cameraSettings.cameraOffsetY.Value, cameraSettings.cameraOffsetZ.Value);
-  
-  -- Need to update all viewports
-
-end
-
 local WidgetUI = {};
 
 local cachedRenders = {};
+
+function WidgetUI._updateViewportFrameToSettings(container : Frame)
+  local viewportFrame = container:FindFirstChildOfClass("ViewportFrame");
+  if not viewportFrame then return end;
+  local cam = viewportFrame.CurrentCamera
+  if not cam then return end
+  local cloned = viewportFrame:FindFirstChildWhichIsA("BasePart") or viewportFrame:FindFirstChildWhichIsA("Model")
+  if not cloned then return end
+
+  local fov = cameraSettings.fieldOfView.Value
+  local baseDistance, center = ViewportFrameUtil.getAutoDistance(cloned, fov)
+  local actualDistance = baseDistance * cameraSettings.distance.Value
+  local panScale = baseDistance * 0.5
+
+  cam.FieldOfView = fov
+  cam.CFrame = ViewportFrameUtil.orbitCamera(
+    center,
+    actualDistance,
+    cameraSettings.orbitX.Value,
+    cameraSettings.orbitY.Value,
+    cameraSettings.panX.Value * panScale,
+    cameraSettings.panY.Value * panScale
+  )
+
+  viewportFrame.Ambient = Color3.fromHSV(0, 0, cameraSettings.ambient.Value)
+  viewportFrame.LightColor = Color3.fromHSV(0, 0, cameraSettings.brightness.Value)
+end
+
+function WidgetUI._refreshAllViewportCameras()
+  for _, container in cachedRenders do
+    WidgetUI._updateViewportFrameToSettings(container)
+  end
+end
+
 function WidgetUI.createViewportFrame(object : BasePart | Model)
   local viewportFrameContainer = Instance.new("Frame");
-  viewportFrameContainer.Size = UDim2.new(0,120,0,135,0);
+  viewportFrameContainer.Size = UDim2.fromOffset(120, 135);
   viewportFrameContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
   viewportFrameContainer.BackgroundTransparency = 0;
   viewportFrameContainer.BorderSizePixel = 0;
@@ -64,17 +93,26 @@ function WidgetUI.createViewportFrame(object : BasePart | Model)
   viewportFrame.Position = UDim2.new(0.5,0,0,5);
   viewportFrame.AnchorPoint = Vector2.new(0.5,0);
   viewportFrame.BackgroundColor3 = Color3.fromRGB(0,0,0);
-  viewportFrame.CurrentCamera = renderCamera;
+  viewportFrame.Name = object.Name;
   viewportFrame.Parent = viewportFrameContainer;
 
-  local uiCorner2 = Instance.new("UICorner");
-  uiCorner2.Parent = viewportFrame;
-  
+  local viewportFrameUICorner = Instance.new("UICorner");
+  viewportFrameUICorner.Parent = viewportFrame;
+
+  local clonedObject = object:Clone();
+  clonedObject.Parent = viewportFrame;
+
+  local renderCam = Instance.new("Camera");
+  renderCam.Parent = viewportFrame;
+  viewportFrame.CurrentCamera = renderCam;
+
+  WidgetUI._updateViewportFrameToSettings(viewportFrameContainer)
+
   local textLabel = Instance.new("TextLabel");
   textLabel.BackgroundTransparency = 1;
   textLabel.AnchorPoint = Vector2.new(0,1);
   textLabel.Size = UDim2.new(1,0,0,20);
-  textLabel.Position = UDim2.new(0,0,1,0);
+  textLabel.Position = UDim2.fromScale(0, 1);
   textLabel.TextColor3 = Color3.fromRGB(255,255,255);
   textLabel.Text = object.Name;
   textLabel.Parent = viewportFrameContainer;
@@ -156,6 +194,17 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
   knobUICorner.CornerRadius = UDim.new(1, 0); 
   knobUICorner.Parent = knob;
 
+  local function updateValue(value)    
+    local rawValue = math.clamp(value, min, max);
+    local roundedValue = tonumber(string.format("%.1f", rawValue));
+    local percentage = (rawValue - min) / (max - min);
+
+    -- Update UI visuals
+    fill.Size = UDim2.fromScale(percentage, 1);
+    knob.Position = UDim2.new(percentage, -7, 0.5, 0);
+    valueLabel.Text = tostring(roundedValue);
+  end
+
   -- Dragging Logic
   local function updateSlider(inputPosition)
     -- Find where the mouse is relative to the slider bar track
@@ -171,10 +220,9 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
     local roundedValue = tonumber(string.format("%.1f", rawValue));
 
     -- Update UI visuals
-    fill.Size = UDim2.new(percentage, 0, 1, 0);
-    knob.Position = UDim2.new(percentage, -7, 0.5, 0);
-    valueLabel.Text = tostring(roundedValue);
-
+    updateValue(roundedValue);
+    valueObject.Value = roundedValue;
+    
     -- Send the value back to your main script to apply camera changes!
     if callback then
       callback(roundedValue);
@@ -203,7 +251,7 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
     knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200);
   end);
 
-  return sliderContainerFrame;
+  return sliderContainerFrame, updateValue;
 end
 
 function WidgetUI.pageRowSettingLabel(text : string)
@@ -238,6 +286,19 @@ function WidgetUI.clearPageFrame(pageFrame : Frame)
   end
 end
 
+local sliderSettingFunctions = {}; -- used to store setter functions from slider
+function WidgetUI._applyPresetSettings(presetData)
+  for setting, value in presetData do
+    if cameraSettings[setting] then
+      cameraSettings[setting].Value = value;
+    end
+
+    if sliderSettingFunctions[setting] then
+      sliderSettingFunctions[setting](value);
+    end
+  end
+end
+
 function WidgetUI.loadPageFrame(pageFrame : Frame)
   WidgetUI.clearPageFrame(pageFrame);
 
@@ -267,21 +328,24 @@ function WidgetUI.loadPageFrame(pageFrame : Frame)
     local presetsLabel = WidgetUI.pageRowSettingLabel("Presets");
     presetsLabel.Parent = presetsMenuFrame;
 
-    for i, presetData in PRESET_SETTINGS do
+    for i, presetData in PresetSettings do
       local button = WidgetUI.menuButton(presetData.presetName);
       button.LayoutOrder = i;
       button.Size = UDim2.new(0, 70, 0.8, 0);
       button.Parent = presetsMenuFrame;
 
       button.Activated:Connect(function()
-       
+        WidgetUI._applyPresetSettings(presetData);
+        WidgetUI._refreshAllViewportCameras();
       end)
     end
 
     for camSetting, settingVal in cameraSettings do
-      local newSlider = WidgetUI.createSlider(camSetting, 0, 180, settingVal, function(a0: number?)
-        print("Updateing")
+      local settingsConfig = SettingsConfig[camSetting];
+      local newSlider, updateValue = WidgetUI.createSlider(camSetting, settingsConfig.min, settingsConfig.max, settingVal, function()
+        WidgetUI._refreshAllViewportCameras();
       end)
+      sliderSettingFunctions[camSetting] = updateValue;
       newSlider.Parent = pageFrame;
     end
   elseif selectedMenuValue.Value == "Effects" then
@@ -337,7 +401,7 @@ function WidgetUI.createBottomHeaderFrame()
   bottomHeaderFrame.Size = UDim2.new(1,0,0,50);
   bottomHeaderFrame.AnchorPoint = Vector2.new(0,1);
   bottomHeaderFrame.BorderSizePixel = 0;
-  bottomHeaderFrame.Position = UDim2.new(0,0,1,0);
+  bottomHeaderFrame.Position = UDim2.fromScale(0, 1);
   
   local uiListLayout = Instance.new("UIListLayout");
   uiListLayout.FillDirection = Enum.FillDirection.Horizontal;
@@ -355,6 +419,18 @@ function WidgetUI.createBottomHeaderFrame()
   exportButton.BackgroundColor3 = Color3.fromRGB(0, 168, 114);
   exportButton.LayoutOrder = 1;
   exportButton.Parent = bottomHeaderFrame;
+
+  exportButton.Activated:Connect(function()
+    local exportsContainer = Instance.new("Folder");
+    exportsContainer.Name = "ModelLensExports";
+    exportsContainer.Parent = workspace;
+
+    for _, viewportFrameContainer in cachedRenders do
+      local vp = viewportFrameContainer:FindFirstChildOfClass("ViewportFrame");
+      if not vp then continue end;
+      ViewportFrameUtil.captureViewport(vp, pluginContext, exportsContainer);
+    end
+  end)
 
   local outputLabel = Instance.new("TextLabel");
   outputLabel.Text = "Select parts/models and press export";
@@ -388,6 +464,8 @@ function WidgetUI.updateViewportFrameRenders(viewportsScrollingFrame : Scrolling
 end
 
 function WidgetUI.create(plugin)
+  pluginContext = plugin;
+
   local widget = plugin:CreateDockWidgetPluginGuiAsync("ModelLensUI", widgetInfo)
   widget.Title = "ModelLens";
   widget.Enabled = true;
@@ -406,7 +484,7 @@ function WidgetUI.create(plugin)
   headerMenuFrame.Parent = background;
 
   local pageFrame = Instance.new("Frame");
-  pageFrame.Size = UDim2.new(1,0,0,250);
+  pageFrame.Size = UDim2.new(1,0,0,280);
   pageFrame.LayoutOrder = 1;
   pageFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
   pageFrame.BorderSizePixel = 0;
@@ -418,7 +496,7 @@ function WidgetUI.create(plugin)
   end)
 
   -- To stop dragging
-  UserInputService.InputEnded:Connect(function(input: InputObject, gpe : boolean)
+  UserInputService.InputEnded:Connect(function(input: InputObject, _ : boolean)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
       isDragging = false;
     end
@@ -431,7 +509,7 @@ function WidgetUI.create(plugin)
   local viewportsScrollingFrame = Instance.new("ScrollingFrame");
   viewportsScrollingFrame.LayoutOrder = 2;
   viewportsScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y;
-  viewportsScrollingFrame.CanvasSize = UDim2.new(0,0,1,0);
+  viewportsScrollingFrame.CanvasSize = UDim2.fromScale(0, 1);
   viewportsScrollingFrame.BorderSizePixel = 0;
   viewportsScrollingFrame.BackgroundTransparency = 1;
   viewportsScrollingFrame.ScrollBarThickness = 6;
@@ -439,20 +517,18 @@ function WidgetUI.create(plugin)
   viewportsScrollingFrame.Parent = background;
 
   local uiGridLayout = Instance.new("UIGridLayout");
-  uiGridLayout.CellSize = UDim2.new(0,120,0,135);
-  uiGridLayout.CellPadding = UDim2.new(0,4,0,4);
+  uiGridLayout.CellSize = UDim2.fromOffset(120, 135);
+  uiGridLayout.CellPadding = UDim2.fromOffset(4, 4);
   uiGridLayout.Parent = viewportsScrollingFrame;
 
   local viewportsScrollingFramePadding = Instance.new("UIPadding");
   viewportsScrollingFramePadding.PaddingTop = UDim.new(0,6);
   viewportsScrollingFramePadding.Parent = viewportsScrollingFrame;
 
-  SelectionService.SelectionChanged:Connect(function()
-    local selections = SelectionService.getSelections();
+  SelectionUtil.SelectionChanged:Connect(function()
+    local selections = SelectionUtil.getSelections();
     WidgetUI.updateViewportFrameRenders(viewportsScrollingFrame, selections)
   end)
-
-  renderCamera.Parent = viewportsScrollingFramePadding;
 
   return widget;
 end
