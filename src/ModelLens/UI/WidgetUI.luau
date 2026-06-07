@@ -92,7 +92,7 @@ function WidgetUI.createViewportFrame(object : BasePart | Model)
   viewportFrame.Size = UDim2.fromOffset(110, 110);
   viewportFrame.Position = UDim2.new(0.5,0,0,5);
   viewportFrame.AnchorPoint = Vector2.new(0.5,0);
-  viewportFrame.BackgroundColor3 = Color3.fromRGB(0,0,0);
+  viewportFrame.BackgroundColor3 = Color3.fromRGB(40,40,40);
   viewportFrame.Name = object.Name;
   viewportFrame.Parent = viewportFrameContainer;
 

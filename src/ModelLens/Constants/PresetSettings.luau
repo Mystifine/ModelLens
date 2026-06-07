@@ -39,6 +39,16 @@ local PresetSettings = {
     orbitX = 225,  -- arctan(1/√2) ≈ 35.26°, the true isometric elevation
     orbitY = 35,
   },
+  {
+    presetName = "3/4 Alt",
+    orbitX = 45,   -- 225 - 180
+    orbitY = 25,
+  },
+  {
+    presetName = "Iso Alt",
+    orbitX = 45,   -- 225 - 180
+    orbitY = 35,
+  },
 }
 
 return PresetSettings
