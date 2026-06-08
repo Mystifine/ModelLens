@@ -80,6 +80,59 @@ function ViewportFrameUtil._captureScreenShotAsync() : string
   return contentId
 end
 
+
+function ViewportFrameUtil._captureWithTransparencyBlack(newViewportFrame : ViewportFrame) : string
+  newViewportFrame.BackgroundColor3 = Color3.fromRGB(0,0,0);
+  ViewportFrameUtil.waitForViewportReady(newViewportFrame);
+  local blackImage = ViewportFrameUtil._processScreenshot(ViewportFrameUtil._captureScreenShotAsync())
+
+  newViewportFrame.BackgroundColor3 = Color3.fromRGB(255,255,255);
+  ViewportFrameUtil.waitForViewportReady(newViewportFrame);
+  local whiteImage = ViewportFrameUtil._processScreenshot(ViewportFrameUtil._captureScreenShotAsync());
+
+  -- alpha reconstruction at RENDER_SIZE (both already cropped/scaled)
+  local size = blackImage.Size
+  local blackPixels = blackImage:ReadPixelsBuffer(Vector2.zero, size)
+  local whitePixels = whiteImage:ReadPixelsBuffer(Vector2.zero, size)
+
+  local outputImage = AssetService:CreateEditableImage({ Size = size })
+  local outputBuffer = buffer.create(size.X * size.Y * 4)
+
+  for i = 0, size.X * size.Y - 1 do
+    local idx = i * 4
+
+    local bR = buffer.readu8(blackPixels, idx)     / 255
+    local bG = buffer.readu8(blackPixels, idx + 1) / 255
+    local bB = buffer.readu8(blackPixels, idx + 2) / 255
+    local wR = buffer.readu8(whitePixels, idx)     / 255
+    local wG = buffer.readu8(whitePixels, idx + 1) / 255
+    local wB = buffer.readu8(whitePixels, idx + 2) / 255
+
+    -- use average of channels for more stable alpha
+    local alphaR = 1 - (wR - bR)
+    local alphaG = 1 - (wG - bG)
+    local alphaB = 1 - (wB - bB)
+    local alpha = (alphaR + alphaG + alphaB) / 3
+
+    local r, g, b
+    if alpha > 0 then
+      r = bR / alpha
+      g = bG / alpha
+      b = bB / alpha
+    else
+      r, g, b = 0, 0, 0
+    end
+
+    buffer.writeu8(outputBuffer, idx,     math.round(math.clamp(r, 0, 1) * 255))
+    buffer.writeu8(outputBuffer, idx + 1, math.round(math.clamp(g, 0, 1) * 255))
+    buffer.writeu8(outputBuffer, idx + 2, math.round(math.clamp(b, 0, 1) * 255))
+    buffer.writeu8(outputBuffer, idx + 3, math.round(math.clamp(alpha, 0, 1) * 255))
+  end
+
+  outputImage:WritePixelsBuffer(Vector2.zero, size, outputBuffer)
+  return outputImage
+end
+
 function ViewportFrameUtil._captureWithTransparency(newViewportFrame : ViewportFrame) : string
   newViewportFrame.BackgroundColor3 = Color3.fromRGB(128,128,128);
   ViewportFrameUtil.waitForViewportReady(newViewportFrame);
@@ -287,7 +340,7 @@ function ViewportFrameUtil.captureViewport(viewportFrame : ViewportFrame)
   local ok ,result = pcall(function()
     local transparent = EffectProperties.backgroundColor.Value == "Transparent";
     if transparent then
-      return ViewportFrameUtil._captureWithTransparency(newViewportFrame);
+      return ViewportFrameUtil._captureWithTransparencyBlack(newViewportFrame);
     else
       local contentId = ViewportFrameUtil._captureScreenShotAsync();
       local croppedImage = ViewportFrameUtil._processScreenshot(contentId);
