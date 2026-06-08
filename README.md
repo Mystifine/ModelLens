@@ -86,11 +86,11 @@ Click any preset button in the Camera tab to snap to that angle. The available p
 
 ## Tips
 
-- **Transparent backgrounds** capture twice (grey + white) to reconstruct alpha — expect a brief double flash per object
+- **Transparent backgrounds** capture twice (black/grey + white) to reconstruct alpha — expect a brief double flash per object
 - **Stroke only works with transparent** backgrounds for full geometry accuracy; solid backgrounds use color-based edge detection
 - **Complex models** with many descendants take longer to capture — the plugin waits proportionally more frames before shooting
 - **Screen resolution matters** — captures at native resolution before downscaling to 1024×1024, so a larger monitor gives sharper results
-- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling
+- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling (You can create a custom device by going to studio Test/Device Emulator/Manage Devices) or if lazy set to 1920x1080.
 
 ---
 
