@@ -4,7 +4,7 @@ local toolbar = plugin:CreateToolbar("ModelLens");
 local openButton = toolbar:CreateButton(
   "ModelLens", 
   "Open ModelLens Window", 
-  ""
+  "rbxassetid://81951763254101"
 )
 
 local widget = WidgetUI.create(plugin);

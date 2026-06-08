@@ -1,3 +1,5 @@
+local ColorSettings = require(script.Parent.ColorSettings);
+
 local SettingsConfig = {};
 
 SettingsConfig.fieldOfView = {
@@ -38,6 +40,19 @@ SettingsConfig.ambient = {
 SettingsConfig.brightness = {
   min = 0,
   max = 1,
+}
+
+SettingsConfig.strokeThickness = {
+  min = 0,
+  max = 10,
+}
+
+SettingsConfig.backgroundColor = {
+  options = ColorSettings.BackgroundColor
+}
+
+SettingsConfig.strokeColor = {
+  options = ColorSettings.StrokeColor,
 }
 
 return SettingsConfig;
