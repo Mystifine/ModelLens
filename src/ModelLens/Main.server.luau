@@ -8,6 +8,7 @@ local openButton = toolbar:CreateButton(
 )
 
 local widget = WidgetUI.create(plugin);
+widget.Enabled = false;
 openButton.Click:Connect(function()
 	widget.Enabled = not widget.Enabled
 end)
