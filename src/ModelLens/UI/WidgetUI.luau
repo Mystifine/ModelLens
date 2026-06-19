@@ -1,8 +1,7 @@
 local RunService = game:GetService("RunService")
-local ServerStorage = game:GetService("ServerStorage")
 local UserInputService = game:GetService("UserInputService");
 
-local VersionSettings = require(ServerStorage.ModelLens.Constants.VersionSettings)
+local VersionSettings = require(script.Parent.Parent.Constants.VersionSettings)
 local PresetSettings = require(script.Parent.Parent.Constants.PresetSettings);
 local SettingsConfig = require(script.Parent.Parent.Constants.SettingsConfig);
 local ColorSettings = require(script.Parent.Parent.Constants.ColorSettings);

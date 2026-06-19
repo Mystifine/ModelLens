@@ -90,7 +90,7 @@ Click any preset button in the Camera tab to snap to that angle. The available p
 - **Stroke only works with transparent** backgrounds for full geometry accuracy; solid backgrounds use color-based edge detection
 - **Complex models** with many descendants take longer to capture — the plugin waits proportionally more frames before shooting
 - **Screen resolution matters** — captures at native resolution before downscaling to 1024×1024, so a larger monitor gives sharper results
-- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling (You can create a custom device by going to studio Test/Device Emulator/Manage Devices) or if lazy set to 1920x1080.
+- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling (You can create a custom device by going to studio Test/Device Emulator/Manage Devices) or if lazy set to 1920x1080. Make sure to also remove the plugin from the side bar
 
 ---
 
