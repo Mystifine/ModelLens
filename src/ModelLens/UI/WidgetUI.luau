@@ -19,7 +19,6 @@ local RenderCache = require(script.Parent.Parent.States.RenderCache);
 -- Widget Settings
 local FRAME_SIZE_X, FRAME_SIZE_Y = 400, 300;
 local MIN_FRAME_SIZE_X, MIN_FRAME_SIZE_Y = 300, 200;
-local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float,true,false,FRAME_SIZE_X,FRAME_SIZE_Y,MIN_FRAME_SIZE_X,MIN_FRAME_SIZE_Y)
 local rendering = false;
 
 -- Top Menu Selection Settings
@@ -671,9 +670,9 @@ end
 function WidgetUI.create(plugin : Plugin)
   pluginContext = plugin;
 
+  local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float,false,false,FRAME_SIZE_X,FRAME_SIZE_Y,MIN_FRAME_SIZE_X,MIN_FRAME_SIZE_Y)
   local widget = plugin:CreateDockWidgetPluginGuiAsync("ModelLensUI", widgetInfo)
   widget.Title = string.format("%s v%s", "ModelLens", VersionSettings.Version);
-  widget.Enabled = true;
 
   local background = Instance.new("Frame")
   background.Size = UDim2.fromScale(1, 1);

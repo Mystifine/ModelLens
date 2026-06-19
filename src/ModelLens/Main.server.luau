@@ -7,8 +7,12 @@ local openButton = toolbar:CreateButton(
   "rbxassetid://81951763254101"
 )
 
-local widget = WidgetUI.create(plugin);
-widget.Enabled = false;
+local widget = nil;
 openButton.Click:Connect(function()
-	widget.Enabled = not widget.Enabled
+	if not widget then
+    widget = WidgetUI.create(plugin);
+    widget.Enabled = true;
+  else
+    widget.Enabled = not widget.Enabled
+	end
 end)
