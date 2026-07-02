@@ -8,18 +8,36 @@ Select your models, adjust the camera, hit Capture, then Export. Done.
 
 ---
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [How to Use](#how-to-use)
+- [UI Overview](#ui-overview)
+- [Camera Presets](#camera-presets)
+- [Saving Profiles](#saving-profiles)
+- [Tips](#tips)
+- [Limitations](#limitations)
+- [Technical Overview](#technical-overview)
+- [Project Structure](#project-structure)
+- [Credits](#credits)
+- [License](#license)
+
+---
+
 ## Features
 
 **Camera control**
 - Orbit, tilt, pan, zoom, and FOV controls
 - Preset angles: Front, Back, Left, Right, Top, Bottom, 3/4, Iso, and their alternates
 - Save and load custom camera/effect profiles
+- Slider values can be dragged **or** clicked and typed directly for exact input
 
 **Capture**
 - High-resolution captures at native screen resolution, downscaled to 1024×1024
 - Transparent background support via dual grey/white capture with per-pixel alpha reconstruction
 - Solid backgrounds: Black, Grey, Green (chroma key)
-- Batch capture multiple models in sequence
+- Batch capture multiple models in sequence, with per-item captured/uncaptured status indicators
 
 **Effects**
 - Outline stroke with adjustable thickness and color
@@ -41,7 +59,7 @@ Select your models, adjust the camera, hit Capture, then Export. Done.
 
 ---
 
-## How to use
+## How to Use
 
 ### Capturing images
 
@@ -58,7 +76,23 @@ Select your models, adjust the camera, hit Capture, then Export. Done.
 2. Right-click → **Export Selection** → save as OBJ (group them to mass export)
 3. Discard non-PNG files
 
-### Camera presets
+---
+
+## UI Overview
+
+| Element | Description |
+|---|---|
+| Header Menu | Switches between the **Camera** and **Effects** settings pages |
+| Presets Row | Scrollable list of built-in and custom profiles; click to apply |
+| Sliders | Numeric settings (FOV, distance, orbit, pan, brightness, ambient, stroke thickness) — drag the knob or click the value field to type an exact number |
+| Color Swatches | Select background/stroke colors, including a transparent option |
+| Checkboxes | Toggle boolean effect settings (e.g. flat ambient lighting) |
+| Viewport Grid | Live previews of all selected objects |
+| Bottom Bar | Save Preset, Capture, Stop Capture, and Export actions |
+
+---
+
+## Camera Presets
 
 Click any preset button in the Camera tab to snap to that angle. The available presets are:
 
@@ -75,7 +109,9 @@ Click any preset button in the Camera tab to snap to that angle. The available p
 | 3/4 Alt | Three-quarter from the opposite diagonal |
 | Iso Alt | Isometric from the opposite diagonal |
 
-### Saving profiles
+---
+
+## Saving Profiles
 
 1. Go to the **Camera** or **Effects** tab and configure your settings
 2. Press **Save Preset** — enter a name and save
@@ -90,7 +126,7 @@ Click any preset button in the Camera tab to snap to that angle. The available p
 - **Stroke only works with transparent** backgrounds for full geometry accuracy; solid backgrounds use color-based edge detection
 - **Complex models** with many descendants take longer to capture — the plugin waits proportionally more frames before shooting
 - **Screen resolution matters** — captures at native resolution before downscaling to 1024×1024, so a larger monitor gives sharper results
-- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling (You can create a custom device by going to studio Test/Device Emulator/Manage Devices) or if lazy set to 1920x1080. Make sure to also remove the plugin from the side bar
+- For the sharpest possible output, resize the Studio window to approximately 1024×1024 before capturing to eliminate any downscaling (create a custom device via Test → Device Emulator → Manage Devices), or if lazy, set to 1920×1080. Make sure to also remove the plugin from the side bar first.
 
 ---
 
@@ -104,7 +140,7 @@ Click any preset button in the Camera tab to snap to that angle. The available p
 
 ---
 
-## Technical overview
+## Technical Overview
 
 ModelLens uses a fullscreen `ViewportFrame` parented to `CoreGui` for each capture. For transparent backgrounds, it shoots twice against grey (128, 128, 128) and white (255, 255, 255) backgrounds, then reconstructs alpha per-pixel using the formula:
 
@@ -116,6 +152,35 @@ color = (grey_sample - 0.5 * (1 - alpha)) / alpha
 Stroke is applied as a post-process on the `EditableImage` pixel buffer — scanning for background-adjacent pixels and writing the stroke color. For transparent captures, stroke is applied to both the grey and white captures before alpha reconstruction so it survives the compositing step.
 
 Screenshots are cropped to a square at the center of the screen and downscaled to 1024×1024 using `DrawImageTransformed`.
+
+---
+
+## Project Structure
+
+```
+├── Constants/
+│   ├── VersionSettings     -- plugin version string
+│   ├── PresetSettings      -- built-in camera/effect presets
+│   ├── SettingsConfig      -- min/max/options per setting
+│   ├── ColorSettings       -- UI and background color palette
+│   └── LayoutOrderSettings -- UI layout ordering per settings page
+├── Utility/
+│   ├── ValueUtil           -- creates ValueBase instances for state
+│   ├── SelectionUtil       -- wraps Studio selection change events
+│   ├── ViewportFrameUtil   -- camera math, capture, and export logic
+│   └── PresetsUtil         -- load/save of custom presets
+├── States/
+│   ├── CameraProperties    -- current camera setting values
+│   ├── EffectProperties    -- current effect setting values
+│   └── RenderCache         -- tracks active previews & captured state
+└── WidgetUI                -- builds and manages all plugin UI
+```
+
+Settings are data-driven via `SettingsConfig`, so new sliders, color groups, or toggles can be added by extending the config tables rather than writing new UI code. Supported setting types map to UI elements as follows:
+
+- **NumberValue** → slider with an editable numeric field
+- **StringValue** → color swatch group
+- **BoolValue** → checkbox
 
 ---
 

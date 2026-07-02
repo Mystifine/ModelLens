@@ -14,4 +14,10 @@ function ValueUtil.numberValue(val : number)
   return numValue;
 end
 
+function ValueUtil.boolValue(val : boolean)
+  local boolValue = Instance.new("BoolValue");
+  boolValue.Value = val;
+  return boolValue;
+end
+
 return ValueUtil;

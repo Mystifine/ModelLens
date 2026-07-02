@@ -4,6 +4,7 @@ local CameraProperties = {
   backgroundColor = ValueUtil.stringValue("Black"),
   strokeColor = ValueUtil.stringValue("Black"),
   strokeThickness = ValueUtil.numberValue(0),
+  usePrimaryPart = ValueUtil.boolValue(false),
 };
 
 return CameraProperties;

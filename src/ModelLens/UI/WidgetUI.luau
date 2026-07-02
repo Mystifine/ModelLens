@@ -210,6 +210,83 @@ function WidgetUI.createViewportFrame(object : BasePart | Model)
   return viewportFrameContainer;
 end
 
+function WidgetUI.createBoolButton(labelText, valueObject, callback)
+  local containerFrame = Instance.new("Frame")
+  containerFrame.Size = UDim2.new(1, 0, 0, 30)
+  containerFrame.BackgroundTransparency = 1
+
+  local uiListLayout = Instance.new("UIListLayout")
+  uiListLayout.FillDirection = Enum.FillDirection.Horizontal
+  uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+  uiListLayout.Padding = UDim.new(0, 6)
+  uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+  uiListLayout.Parent = containerFrame
+
+  local uiPadding = Instance.new("UIPadding")
+  uiPadding.PaddingLeft = UDim.new(0, 6)
+  uiPadding.Parent = containerFrame
+
+  local settingLabel = WidgetUI.pageRowSettingLabel(labelText)
+  settingLabel.LayoutOrder = 0
+  settingLabel.Parent = containerFrame
+
+  -- Outer checkbox square
+  local checkbox = Instance.new("TextButton")
+  checkbox.Name = "Checkbox"
+  checkbox.LayoutOrder = 1
+  checkbox.Size = UDim2.fromOffset(20, 20)
+  checkbox.AutoButtonColor = false
+  checkbox.Text = ""
+  checkbox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+  checkbox.BorderSizePixel = 0
+  checkbox.Parent = containerFrame
+
+  local checkboxCorner = Instance.new("UICorner")
+  checkboxCorner.CornerRadius = UDim.new(0, 4)
+  checkboxCorner.Parent = checkbox
+
+  local checkboxStroke = Instance.new("UIStroke")
+  checkboxStroke.Color = Color3.fromRGB(90, 90, 90)
+  checkboxStroke.Thickness = 1
+  checkboxStroke.Parent = checkbox
+
+  -- Inner indicator square
+  local innerSquare = Instance.new("Frame")
+  innerSquare.Name = "Indicator"
+  innerSquare.AnchorPoint = Vector2.new(0.5, 0.5)
+  innerSquare.Position = UDim2.fromScale(0.5, 0.5)
+  innerSquare.Size = UDim2.fromOffset(10, 10)
+  innerSquare.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+  innerSquare.BorderSizePixel = 0
+  innerSquare.Visible = valueObject.Value
+  innerSquare.Parent = checkbox
+
+  local innerCorner = Instance.new("UICorner")
+  innerCorner.CornerRadius = UDim.new(0, 2)
+  innerCorner.Parent = innerSquare
+
+  -- Keep visuals synced if valueObject changes elsewhere
+  valueObject.Changed:Connect(function(newValue)
+    innerSquare.Visible = newValue
+  end)
+
+  checkbox.Activated:Connect(function()
+    valueObject.Value = not valueObject.Value
+    innerSquare.Visible = valueObject.Value
+    if callback then
+      callback(valueObject.Value)
+    end
+  end)
+
+  -- external setter for consistency with slider pattern
+  local function setValue(value)
+    valueObject.Value = value
+    innerSquare.Visible = valueObject.Value
+  end
+
+  return containerFrame, setValue
+end
+
 function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
   local sliderContainerFrame = Instance.new("Frame");
   sliderContainerFrame.Size = UDim2.new(1,0,0,30);
@@ -230,15 +307,17 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
   settingLabel.LayoutOrder = 0;
   settingLabel.Parent = sliderContainerFrame;
 
-  local valueLabel = Instance.new("TextLabel");
+  -- Editable value box (was a TextLabel)
+  local valueLabel = Instance.new("TextBox");
   valueLabel.Text = tostring(valueObject.Value);
   valueLabel.Size = UDim2.new(0,30,0.8,0);
   valueLabel.TextXAlignment = Enum.TextXAlignment.Right;
   valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255);
   valueLabel.BackgroundTransparency = 1;
+  valueLabel.ClearTextOnFocus = false;
   valueLabel.LayoutOrder = 2;
   valueLabel.Parent = sliderContainerFrame;
-  
+
   local sliderFrame = Instance.new("Frame");
   sliderFrame.Size = UDim2.new(1, -uiPadding.PaddingLeft.Offset - settingLabel.AbsoluteSize.X - valueLabel.AbsoluteSize.X, 1, 0);
   sliderFrame.BackgroundTransparency = 1;
@@ -304,14 +383,13 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
     
     -- Map percentage to our real min/max value boundaries
     local rawValue = min + (max - min) * percentage;
-    -- Round it off neatly to 1 decimal place (or remove 'string.format' if you want pure integers)
+    -- Round it off neatly to 1 decimal place 
     local roundedValue = tonumber(string.format("%.1f", rawValue));
 
     -- Update UI visuals
     updateValue(roundedValue);
     valueObject.Value = roundedValue;
     
-    -- Send the value back to your main script to apply camera changes!
     if callback then
       callback(roundedValue);
     end
@@ -358,6 +436,27 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
   local pluginMouse = pluginContext:GetMouse();
   pluginMouse.Button1Up:Connect(function()
     isDragging = false;
+  end)
+
+  -- Manual text entry
+  valueLabel.FocusLost:Connect(function()
+    local inputNumber = tonumber(valueLabel.Text);
+
+    if not inputNumber then
+      -- Invalid input (empty, letters, etc.) -- revert to last known good value
+      updateValue(valueObject.Value);
+      return;
+    end
+
+    local rawValue = math.clamp(inputNumber, min, max);
+    local roundedValue = tonumber(string.format("%.1f", rawValue));
+
+    updateValue(roundedValue);
+    valueObject.Value = roundedValue;
+
+    if callback then
+      callback(roundedValue);
+    end
   end)
 
   return sliderContainerFrame, updateValue;
@@ -508,6 +607,13 @@ function WidgetUI.loadPageFrame(pageFrame : Frame)
         settingUpdateFunctions[effSetting] = updateValue;
         buttonGroup.LayoutOrder = LayoutOrderSettings.EffectSettings[effSetting];
         buttonGroup.Parent = pageFrame;
+      elseif settingVal:IsA("BoolValue") then
+        local button, updateValue = WidgetUI.createBoolButton(effSetting, settingVal, function()
+          WidgetUI._refreshAllViewportCameras();
+        end)
+        settingUpdateFunctions[effSetting] = updateValue;
+        button.LayoutOrder = LayoutOrderSettings.EffectSettings[effSetting];
+        button.Parent = pageFrame;
       end
     end
   end
