@@ -12,9 +12,10 @@ LayoutOrderSettings.CameraSettings = {
 }
 
 LayoutOrderSettings.EffectSettings = {
-  backgroundColor = 1,
-  strokeColor = 2,
-  strokeThickness = 3,
+  usePrimaryPart = 1,
+  backgroundColor = 2,
+  strokeColor = 3,
+  strokeThickness = 4,
 }
 
 return LayoutOrderSettings;

@@ -44,7 +44,7 @@ SettingsConfig.brightness = {
 
 SettingsConfig.strokeThickness = {
   min = 0,
-  max = 10,
+  max = 50,
 }
 
 SettingsConfig.backgroundColor = {

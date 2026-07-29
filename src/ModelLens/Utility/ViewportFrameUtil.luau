@@ -12,7 +12,7 @@ local RENDER_SIZE = 1024;
 local ViewportFrameUtil = {};
 
 function ViewportFrameUtil.getObjectBoundingRadius(object)
-  if object:IsA("Model") then
+  if object:IsA("Model") and object.PrimaryPart ~= nil then
 
     local cf, size = nil, nil;
 
@@ -284,27 +284,60 @@ function ViewportFrameUtil.applyStroke(image : EditableImage)
 
   local edgeMask = buffer.create(totalPixels);
 
-  for y = 0, size.Y - 1 do
-    for x = 0, size.X - 1 do
-      local idx = (y * size.X + x) * 4;
-      if idx + 3 >= bufferSize then continue end;
-      if not isBackground(idx) then continue end
+  -- Build edgeMask via a two-pass chamfer distance transform: seed
+  -- foreground pixels at distance 0, propagate outward in two raster
+  -- sweeps, then keep background pixels within `thickness`.
+  -- O(totalPixels) instead of O(totalPixels * thickness^2).
+  local W, H = size.X, size.Y
+  local ORTH, DIAG, INF = 3, 4, 255 -- integer weights approximating Euclidean distance
 
-      for dy = -thickness, thickness do
-        for dx = -thickness, thickness do
-          if dx*dx + dy*dy > thickness*thickness then continue end
-          local nx = x + dx
-          local ny = y + dy
-          if nx < 0 or ny < 0 or nx >= size.X or ny >= size.Y then continue end
-          local nIdx = (ny * size.X + nx) * 4;
-          if nIdx + 3 >= bufferSize then continue end;
-          if not isBackground((ny * size.X + nx) * 4) then
-            buffer.writeu8(edgeMask, y * size.X + x,1);
-            break
-          end
-        end
-        if buffer.readu8(edgeMask, y *size.X + x) == 1 then break end
+  local dist = buffer.create(totalPixels)
+
+  for y = 0, H - 1 do
+    for x = 0, W - 1 do
+      local i = y * W + x
+      local idx = i * 4
+      local bg = (idx + 3 >= bufferSize) or isBackground(idx)
+      buffer.writeu8(dist, i, bg and INF or 0)
+    end
+  end
+
+  -- forward pass: top-left -> bottom-right
+  for y = 0, H - 1 do
+    for x = 0, W - 1 do
+      local i = y * W + x
+      local d = buffer.readu8(dist, i)
+      if x > 0 then d = math.min(d, buffer.readu8(dist, i - 1) + ORTH) end
+      if y > 0 then
+        d = math.min(d, buffer.readu8(dist, i - W) + ORTH)
+        if x > 0 then d = math.min(d, buffer.readu8(dist, i - W - 1) + DIAG) end
+        if x < W - 1 then d = math.min(d, buffer.readu8(dist, i - W + 1) + DIAG) end
       end
+      buffer.writeu8(dist, i, d)
+    end
+  end
+
+  -- backward pass: bottom-right -> top-left
+  for y = H - 1, 0, -1 do
+    for x = W - 1, 0, -1 do
+      local i = y * W + x
+      local d = buffer.readu8(dist, i)
+      if x < W - 1 then d = math.min(d, buffer.readu8(dist, i + 1) + ORTH) end
+      if y < H - 1 then
+        d = math.min(d, buffer.readu8(dist, i + W) + ORTH)
+        if x < W - 1 then d = math.min(d, buffer.readu8(dist, i + W + 1) + DIAG) end
+        if x > 0 then d = math.min(d, buffer.readu8(dist, i + W - 1) + DIAG) end
+      end
+      buffer.writeu8(dist, i, d)
+    end
+  end
+
+  -- background pixels within `thickness` of any foreground pixel
+  local threshold = thickness * ORTH
+  for i = 0, totalPixels - 1 do
+    local d = buffer.readu8(dist, i)
+    if d > 0 and d <= threshold then
+      buffer.writeu8(edgeMask, i, 1)
     end
   end
 
