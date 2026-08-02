@@ -174,8 +174,9 @@ function WidgetUI.createViewportFrame(object : BasePart | Model)
   local viewportFrame = Instance.new("ViewportFrame");
   viewportFrame.Size = UDim2.fromOffset(110, 110);
   viewportFrame.Position = UDim2.new(0.5,0,0,5);
-  viewportFrame.LightDirection = Vector3.new(0,-1,0);
-  viewportFrame.LightColor = Color3.fromRGB(255,255,255);
+  viewportFrame.LightDirection = Vector3.new(-1, -1, -0.5).Unit;
+  viewportFrame.Ambient = Color3.fromRGB(140,140,140);
+  viewportFrame.LightColor = Color3.fromRGB(255, 248, 235);
   viewportFrame.AnchorPoint = Vector2.new(0.5,0);
   viewportFrame.BackgroundColor3 = ColorSettings.BackgroundColor[effectSettings.backgroundColor.Value];
   viewportFrame.Name = object.Name;
@@ -399,43 +400,33 @@ function WidgetUI.createSlider(labelText, min, max, valueObject, callback)
   local dragConnection = nil;
 
   -- Start Dragging
-  knob.MouseButton1Down:Connect(function()
+  knob.InputBegan:Connect(function(input : InputObject)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end;
+
     isDragging = true;
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255); -- Light up on hover/click
   
     dragConnection = RunService.RenderStepped:Connect(function(_: number)
-      if not isDragging then
-        if dragConnection then
-          dragConnection:Disconnect();
-          dragConnection = nil;
-        end
+      if not isDragging and dragConnection then
+        dragConnection:Disconnect();
+        dragConnection = nil;
         return;        
       end
+
       updateSlider(Vector2.new(mouseX, mouseY));
     end)
   end);
 
+  -- Stop Dragging
+  knob.InputEnded:Connect(function(input : InputObject)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end;
+    isDragging = false;
+    knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200);
+  end)
+
   sliderContainerFrame.MouseMoved:Connect(function(x, y)
     mouseX = x;
     mouseY = y;
-  end)
-
-  -- Stop Dragging
-  knob.MouseButton1Up:Connect(function()
-    isDragging = false;
-    knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200);
-  end);
-
-    -- To stop dragging
-  UserInputService.InputEnded:Connect(function(input: InputObject, _ : boolean)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-      isDragging = false;
-    end
-  end)
-
-  local pluginMouse = pluginContext:GetMouse();
-  pluginMouse.Button1Up:Connect(function()
-    isDragging = false;
   end)
 
   -- Manual text entry
@@ -533,10 +524,6 @@ function WidgetUI.loadPageFrame(pageFrame : Frame)
     uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
     uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Center;
     uiListLayout.Parent = presetsMenuFrame;
-
-    local uiPadding = Instance.new("UIPadding");
-    uiPadding.PaddingLeft = UDim.new(0,6);
-    uiPadding.Parent = presetsMenuFrame;
 
     local presetsLabel = WidgetUI.pageRowSettingLabel("Presets");
     presetsLabel.Parent = presetsMenuFrame;

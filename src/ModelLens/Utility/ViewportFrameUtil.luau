@@ -12,20 +12,20 @@ local RENDER_SIZE = 1024;
 local ViewportFrameUtil = {};
 
 function ViewportFrameUtil.getObjectBoundingRadius(object)
-  if object:IsA("Model") and object.PrimaryPart ~= nil then
+  if object:IsA("Model") then
 
     local cf, size = nil, nil;
 
-    if not EffectProperties.usePrimaryPart.Value or object:IsA("BasePart") then
-      cf, size = object:GetBoundingBox();
-    elseif EffectProperties.usePrimaryPart.Value and object:IsA("Model") then
+    if EffectProperties.usePrimaryPart.Value and object.PrimaryPart ~= nil then
       cf, size = object.PrimaryPart.CFrame, object.PrimaryPart.Size;
+    else
+      cf, size = object:GetBoundingBox();
     end
 
-    return size.Magnitude / 2, cf.Position;
+    return size.Magnitude * 0.5, cf.Position;
 
   elseif object:IsA("BasePart") then
-    return object.Size.Magnitude / 2, object.Position;
+    return object.Size.Magnitude * 0.5, object.Position;
   end
   return 10, Vector3.zero;
 end
