@@ -753,6 +753,7 @@ function WidgetUI.updateViewportFrameRenders(viewportsScrollingFrame : Scrolling
   for _, object in selections do
     if not object:IsA("BasePart") and not object:IsA("Model") then continue end;
     if object:IsA("Terrain") then continue end;
+    if object:IsA("Workspace") then continue end;
     if RenderCache.getObjectCache(object) then continue end;
 
     local newViewport = WidgetUI.createViewportFrame(object);

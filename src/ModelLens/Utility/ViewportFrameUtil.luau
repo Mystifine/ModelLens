@@ -355,15 +355,21 @@ function ViewportFrameUtil.applyStroke(image : EditableImage)
 end
 
 function ViewportFrameUtil.captureViewport(viewportFrame : ViewportFrame)
-
   local screenGui = Instance.new("ScreenGui");
   screenGui.Name = "ModelLens_Capture";
   screenGui.IgnoreGuiInset = true;
   screenGui.DisplayOrder = 999;
-  screenGui.Parent = game.CoreGui;
+  screenGui.Parent = game.StarterGui;
 
   local newViewportFrame = viewportFrame:Clone(); -- should contain all the old settings
   newViewportFrame.CurrentCamera = newViewportFrame:FindFirstChildOfClass("Camera"); -- comes from the render previously
+
+  if not newViewportFrame.CurrentCamera then
+    warn("ModelLens Capture Failed: cloned viewportFrame lost its CurrentCamera reference")
+    screenGui:Destroy()
+    return nil
+  end
+
   newViewportFrame.Size = UDim2.fromScale(1, 1);
   newViewportFrame.AnchorPoint = Vector2.new(0,0);
   newViewportFrame.BackgroundColor3 = ColorSettings.BackgroundColor[EffectProperties.backgroundColor.Value];
